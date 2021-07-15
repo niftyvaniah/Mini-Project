@@ -1922,7 +1922,7 @@ class Report(tk.Frame):
             if str(book[5]) == 'Unavailable':
                 if book[5] not in bookid:
                     bookid.append(book[0])
-
+        """
         cur.execute("SELECT * FROM rent")
         bIDNum =[]
         borrower=cur.fetchall()
@@ -1930,9 +1930,10 @@ class Report(tk.Frame):
             if b[2] not in bIDNum:
                 bIDNum.append(b[2])
         con.commit()
+        """
         
         def addReport():
-            if BIDNum.get() == "" or BNumber.get() == "" or RDate.get() == "":
+            if BNumber.get() == "" or RDate.get() == "":
                     tkinter.messagebox.showerror("Book Rental System", "Please fill in the box")
             else: 
                 conn = sqlite3.connect("BRS.db")
@@ -1946,37 +1947,35 @@ class Report(tk.Frame):
                 books = cur2.fetchall()
                 rents = cur3.fetchall()
                 Name = ""
-                for borrower in borname:
-                    if BIDNum.get() == borrower[0]:
-                        Name = borrower[2]
-                        try:
-                            cur.execute("PRAGMA foreign_keys = ON")
-                            for rent in rents:
-                                if str(BNumber.get()) == str(rent[1]):
+                for rent in rents:
+                    for borrower in borname:
+                        if BNumber.get() == rent[1]:
+                            try:
+                                cur.execute("PRAGMA foreign_keys = ON")
+                                if rent[2] == borrower[0]:
+                                    Name = borrower[2]
                                     cur.execute("DELETE FROM rent WHERE RentOrderNo = ?",(rent[0],))   
                                     cur.execute("INSERT INTO report (BIDNum, Name, BookNumber, DateBorrowed, DueDate, ReturnDate) VALUES (?,?,?,?,?,?)",\
-                                          (BIDNum.get(), Name,BNumber.get(), rent[3], rent[4],RDate.get()))  
-                                else:
-                                    pass
-                                
-                            for book in books:
-                                if str(BNumber.get()) == str(book[0]):
-                                    cur2.execute("UPDATE books SET BookNumber = ?, ISBN = ?, Title = ?, Author = ?, Genre = ?, Status = 'Available' WHERE BookNumber = ?",
-                                                 (BNumber.get(),book[1],book[2],book[3],book[4],BNumber.get()))  
-                                    cur2.execute("INSERT INTO booksavailable (BookNumber, ISBN, Title, Author, Genre) VALUES (?,?,?,?,?)",\
-                                                 (BNumber.get(),book[1],book[2],book[3],book[4]))
-                                    cur2.execute("INSERT INTO return (BookNumber, ISBN, Title, Author, Genre) VALUES (?,?,?,?,?)",\
-                                                 (BNumber.get(),book[1],book[2],book[3],book[4]))
-                                else:
-                                    pass
-                            
-                            conn.commit()           
-                            conn.close()
-                            clear()
-                            tkinter.messagebox.showinfo("Book Rental System", "Added to Report")
-                            displayReport()
-                        except:
-                            tkinter.messagebox.showerror("Book Rental System", "Book ID or Borrower's ID does not exists")
+                                               (rent[2], Name,BNumber.get(), rent[3], rent[4],RDate.get()))
+                                    for book in books:
+                                        if str(BNumber.get()) == str(book[0]):
+                                            cur2.execute("UPDATE books SET BookNumber = ?, ISBN = ?, Title = ?, Author = ?, Genre = ?, Status = 'Available' WHERE BookNumber = ?",
+                                                         (BNumber.get(),book[1],book[2],book[3],book[4],BNumber.get()))  
+                                            cur2.execute("INSERT INTO booksavailable (BookNumber, ISBN, Title, Author, Genre) VALUES (?,?,?,?,?)",\
+                                                         (BNumber.get(),book[1],book[2],book[3],book[4]))
+                                            cur2.execute("INSERT INTO return (BookNumber, ISBN, Title, Author, Genre) VALUES (?,?,?,?,?)",\
+                                                         (BNumber.get(),book[1],book[2],book[3],book[4]))
+                                        else:
+                                            pass
+                                    
+                                    conn.commit()           
+                                    conn.close()
+                                    clear()
+                                    tkinter.messagebox.showinfo("Book Rental System", "Added to Report")
+                                    displayReport()
+                            except:
+                                tkinter.messagebox.showerror("Book Rental System", "Book ID or Borrower's ID does not exists")
+                    
               
         def displayReport():
             self.orderlist.delete(*self.orderlist.get_children())
@@ -1989,7 +1988,7 @@ class Report(tk.Frame):
             conn.close()
         
         def updateReport():
-            if BIDNum.get() == "" or Name.get() == "" or BNumber.get() == "" or BDate.get() == "" or DDate.get() == "" or RDate.get() == "":
+            if BNumber.get() == "" or RDate.get() == "":
                 tkinter.messagebox.showerror("Book Rental System","Please fill in the blank.")
             else:
                 for selected in self.orderlist.selection():
@@ -2174,21 +2173,22 @@ class Report(tk.Frame):
         self.lblsearchby = Label(self, font=("Poppins", 12),anchor = W, text="SEARCH BY:", width = 72, padx=5, pady=5,bg="#90a3b0")
         self.lblsearchby.place(x=650,y=116)
         
-        
+        """
         self.lblBorrowerID = Label(self, font=("Poppins", 12, "bold"), text="Borrower's ID Num:", padx=5, pady=5)
         self.lblBorrowerID.place(x=200,y=475)
         self.txtBorrowerID = ttk.Combobox(self,
                                         values = bIDNum,
                                         state="readonly", font=("Poppins", 13), textvariable=BIDNum, width=38)
         self.txtBorrowerID.place(x=360,y=480)
+        """
         
         self.lblBookNum = Label(self, font=("Poppins", 12, "bold"), text="Book Number:", padx=5, pady=5)
-        self.lblBookNum.place(x=200,y=515)
+        self.lblBookNum.place(x=200,y=475)
         
         self.txtBookNum =ttk.Combobox(self,
                                         values = bookid,
                                         state="readonly", font=("Poppins", 13), textvariable=BNumber, width=38)
-        self.txtBookNum.place(x=360,y=520)
+        self.txtBookNum.place(x=360,y=480)
         
         #self.lblBDate = Label(self, font=("Poppins", 12, "bold"), text="Borrow Date:", padx=5, pady=5)
         #self.lblBDate.place(x=750,y=415)
@@ -2202,7 +2202,7 @@ class Report(tk.Frame):
         
         self.lblRDate = Label(self, font=("Poppins", 12, "bold"), text="Return Date:", padx=5, pady=5)
         self.lblRDate.place(x=750,y=475)
-        self.txtRDate = DateEntry(self, font=("Poppins", 13), state="readonly", textvariable=RDate, width=38,year=2021, month=7, day=7, bg="#375971", fg="snow")
+        self.txtRDate = DateEntry(self, font=("Poppins", 13), state="readonly", textvariable=RDate, width=42,year=2021, month=7, day=7, bg="#375971", fg="snow")
         self.txtRDate.place(x=890,y=480)
         
         self.txtSearch = Entry(self, font=("Poppins", 13), textvariable=Search,relief=FLAT, width=40)
