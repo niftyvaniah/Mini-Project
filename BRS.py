@@ -31,7 +31,7 @@ class App(tk.Tk):
 
             frame.grid(row=0, column=0, sticky="nsew")
 
-        self.show_frame(Books)
+        self.show_frame(Login)
 
     def show_frame(self, page_number):
 
@@ -77,17 +77,26 @@ class Login(tk.Frame):
         def Login():
             conn = sqlite3.connect("BRS.db")
             cur = conn.cursor()
+            cur1 = conn.cursor()
+            cur1.execute("SELECT * FROM user")
+            users = cur1.fetchall()
             if login.get == "" or password.get() == "":
                 tkinter.messagebox.showerror("Book Rental System", "Please require the completed field")
             else:
                 cur.execute("SELECT * FROM user WHERE username = ? and password = ?", (login.get(), password.get()))
                 if cur.fetchone() is not None:
+                    for user in users:
+                        if login.get() == user[0]:
+                            cur1.execute("INSERT INTO online_user(username, password, role) VALUES(?,?,?)",(login.get(),password.get(),user[2]))
                     tkinter.messagebox.showinfo("Book Rental System", "Login Successfully")
                     controller.show_frame(Dashboard)
                     login.set('')
                     password.set('')
+                    
                 else:
                     tkinter.messagebox.showerror("Book Rental System", "Invalid password or username")
+                    
+                
             conn.commit() 
             conn.close()
                 
@@ -111,7 +120,7 @@ class Login(tk.Frame):
         self.reg = Button(self,font=("Century Gothic", 12,"underline"), text="Register", bd=0, bg="#445a67", fg="snow",
                                     command=lambda: controller.show_frame(Register))
         self.reg.config(cursor= "hand2")
-        self.reg.place(x=645,y=625)
+        self.reg.place(x=640,y=625)
 
         Database()
 
@@ -274,7 +283,7 @@ class Dashboard(tk.Frame):
 
         cdate = tk.Label(self,font=("Century Gothic", 15),padx=3, pady=7, height = 4,width = 21,
                             bg="#375971",fg="snow",text="\tDate Today", anchor=N)
-        cdate.place(x=1066,y=310)
+        cdate.place(x=1066,y=300)
         clendaricon = tk.Label(self, image=self.calen, bd=0, bg="#375971")
         clendaricon.place(x=1070,y=320)
         
@@ -461,14 +470,13 @@ class Dashboard(tk.Frame):
         lab.place(x=1180,y=340)
 
         def clock():
-            #current_date = Label(self, text=f"{datetime.datetime.now():%a, %b %d %Y}", bg ="#375971", fg = "snow", font=("Impact", 40))
             time = datetime.datetime.now().strftime("%b/ %d /%Y")
             lab.config(text=time)
             self.after(1000, clock)
         
         cal = Calendar(self, selectmode='day', year=2021, month=7, font=("Century Gothic",12),foreground ="black",\
                        background = "#ccbe96", headersbackground = "#eed799" , normalbackground = "white", weekendbackground="white",\
-                       othermonthbackground="white", othermonthwebackground="white")
+                       othermonthbackground="white", othermonthwebackground='white')
         
         def calendar():
             con = sqlite3.connect("BRS.db")
@@ -492,16 +500,22 @@ class Dashboard(tk.Frame):
                 date=datetime.datetime.strptime(k,"%m/%d/%Y").date()
                 cal.calevent_create(date, due_date[k][0], due_date[k][1])
              
-            for r in returned_date.keys():
-                date=datetime.datetime.strptime(r,"%m/%d/%Y").date()
-                cal.calevent_create(date, returned_date[r][0], returned_date[r][1])
-                
-            cal.tag_config('due_date', background='red', foreground='yellow')
-            cal.tag_config('returned_date', background='black', foreground='white')
+            #for r in returned_date.keys():
+                #date=datetime.datetime.strptime(r,"%m/%d/%Y").date()
+                #cal.calevent_create(date, returned_date[r][0], returned_date[r][1])
+            for date in dates:
+                for rdate in rdates:
+                    if date[4] == rdate[6]:
+                        print(True)
+                        cal.tag_config('due_date', background='green', foreground='white')
+                    elif date[4] != rdate[6]:
+                        cal.tag_config('due_date', background='red', foreground='yellow')
+                    else:
+                        pass
+            #cal.tag_config('returned_date', background='black', foreground='white')
             cal.place(x=435,y=438)
             
-        duedate = StringVar()
-        
+        duedate = StringVar()    
         def grabdate():
             date = cal.get_date()
             a = date.split("/") 
@@ -544,15 +558,22 @@ class Dashboard(tk.Frame):
                 else:
                     my_date.config(text=dates)
         
-        
         def logout():
+            conn = sqlite3.connect("BRS.db")
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM online_user")
+            c_user = cur.fetchall()
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
+                for user in c_user:
+                    cur.execute("DELETE FROM online_user WHERE username = ?",(user[0],))
+            conn.commit()
+            conn.close()
         
-        #my_button = Button(self, font=("Century Gothic",10,"underline"), text = "Select Date", bg ="#375971", fg = "snow", bd=0,command = grabdate)
-        #my_button.place(x=1010, y=650)
-        #my_button.config(cursor= "hand2")
+        my_button = Button(self, font=("Century Gothic",10,"underline"), text = "Select Date", bg ="#375971", fg = "snow", bd=0,command = grabdate)
+        my_button.place(x=1010, y=650)
+        my_button.config(cursor= "hand2")
         
         my_borrower = Label(self, font=("Century Gothic",13), width = 20, bg ="#375971", fg = "snow", text="")   
         my_borrower.place(x=815,y=480)
@@ -717,17 +738,27 @@ class Books(tk.Frame):
             else:
                 conn = sqlite3.connect("BRS.db")
                 c = conn.cursor()
-                c.execute("INSERT INTO books(BookNumber, ISBN, Title, Status) VALUES (?,?,?,'Available')",\
-                          (BookNumber.get(),ISBN.get(),Title.get()))
-                c.execute("INSERT INTO authors(BookNumber, Author) VALUES (?,?)",\
-                          (BookNumber.get(),Author.get()))
-                c.execute("INSERT INTO genres(BookNumber, Genre) VALUES (?,?)",\
-                          (BookNumber.get(),Genre.get()))
-                conn.commit()           
+                cur = conn.cursor()
+                cur.execute("SELECT * FROM online_user")
+                c_user = cur.fetchall()
+                for role in c_user:
+                    if role[2] == "Staff":
+                        tkinter.messagebox.showerror("Book Rental System", "Only admin can add books")
+                    else:
+                        c.execute("INSERT INTO books(BookNumber, ISBN, Title, Status) VALUES (?,?,?,'Available')",\
+                                  (BookNumber.get(),ISBN.get(),Title.get()))
+                        c.execute("INSERT INTO authors(BookNumber, Author) VALUES (?,?)",\
+                                  (BookNumber.get(),Author.get()))
+                        c.execute("INSERT INTO genres(BookNumber, Genre) VALUES (?,?)",\
+                                  (BookNumber.get(),Genre.get()))
+                        conn.commit()  
+                        tkinter.messagebox.showinfo("Book Rental System", "Book added to database")
+                        displayBook()
+                        clear()
+                        
                 conn.close()
-                clear()
-                tkinter.messagebox.showinfo("Book Rental System", "Book added to database")
-                displayBook()
+                
+                
             
         def displayBook():
             self.booklist.delete(*self.booklist.get_children())
@@ -951,6 +982,7 @@ class Books(tk.Frame):
             for book in books:
                 self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
             con.close()
+            
         def sortStatus():
             self.booklist.delete(*self.booklist.get_children())
             con = sqlite3.connect("BRS.db")
@@ -967,9 +999,17 @@ class Books(tk.Frame):
        
             
         def logout():
+            conn = sqlite3.connect("BRS.db")
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM online_user")
+            c_user = cur.fetchall()
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
+                for user in c_user:
+                    cur.execute("DELETE FROM online_user WHERE username = ?",(user[0],))
+            conn.commit()
+            conn.close()
 
         ## Window Buttons
         
@@ -1245,23 +1285,7 @@ class Authors(tk.Frame):
                         unique_authors.append(u_author)
                         
             for row in unique_authors:
-                self.authorlist.insert("", tk.END, text=row[0], values=(row[::],))
-            """
-            for author in authors:
-               list_of_authors.append(author[1]) 
-            print(list_of_authors)
-            
-            for author in list_of_authors:
-                list_of_authors2.append(author)
-            
-            for author in list_of_authors2:
-                for u_author in author:
-                    if u_author not in unique_authors:
-                        unique_authors.append(u_author)
-            """   
-            
-            #for author in authors:
-               # self.authorlist.insert("", tk.END, text='', values=author[1:])
+                self.authorlist.insert("", tk.END, text=row[0], values=(row[::],))  
                 
             conn.commit()    
             conn.close()
@@ -1324,9 +1348,17 @@ class Authors(tk.Frame):
             genre.set(values[4])
             
         def logout():
+            conn = sqlite3.connect("BRS.db")
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM online_user")
+            c_user = cur.fetchall()
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
+                for user in c_user:
+                    cur.execute("DELETE FROM online_user WHERE username = ?",(user[0],))
+            conn.commit()
+            conn.close()
         
         ## Window Buttons
         
@@ -1615,9 +1647,17 @@ class Genres(tk.Frame):
             genre.set(values[4])
             
         def logout():
+            conn = sqlite3.connect("BRS.db")
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM online_user")
+            c_user = cur.fetchall()
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
+                for user in c_user:
+                    cur.execute("DELETE FROM online_user WHERE username = ?",(user[0],))
+            conn.commit()
+            conn.close()
         
         ## Window Buttons
         
@@ -1932,9 +1972,17 @@ class Borrowers(tk.Frame):
             con.close()
 
         def logout():
+            conn = sqlite3.connect("BRS.db")
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM online_user")
+            c_user = cur.fetchall()
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
+                for user in c_user:
+                    cur.execute("DELETE FROM online_user WHERE username = ?",(user[0],))
+            conn.commit()
+            conn.close()
 
         ## Window Buttons
         
@@ -2271,16 +2319,7 @@ class Order(tk.Frame):
                                 (BookNumber.get(),BorrowersID.get(),DateBorrowed.get(),dates,ReturnDate.get(), self.orderlist.set(selected, '#1')))                      
                     tkinter.messagebox.showinfo("Books Rental System", "Order Updated Successfully")
                     displayOrder()
-                    clear()
-                """  
-                y = self.orderlist.selection()[0]
-                bookn = self.orderlist.item(y)["values"][1] 
-                for book in books:
-                    for rent in rents:
-                        if book[0] == rent[1]:
-                            cur.execute("UPDATE books SET BookNumber = ?, ISBN = ?, Title = ?, Status = 'Available' WHERE BookNumber = ?",
-                                     (BookNumber.get(),book[1],book[2]),BookNumber.get())
-                """       
+                    clear()     
                 conn.close()
                 conn.commit()
                                    
@@ -2362,9 +2401,17 @@ class Order(tk.Frame):
             ReturnDate.set(values[5])
 
         def logout():
+            conn = sqlite3.connect("BRS.db")
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM online_user")
+            c_user = cur.fetchall()
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
+                for user in c_user:
+                    cur.execute("DELETE FROM online_user WHERE username = ?",(user[0],))
+            conn.commit()
+            conn.close()
                 
         con = sqlite3.connect("BRS.db")
         cur = con.cursor()
@@ -2514,7 +2561,9 @@ class Order(tk.Frame):
         
         self.lblDueDate = Label(self, font=("Poppins", 12, "bold"), text="Due Date:", padx=5, pady=5)
         self.lblDueDate.place(x=200,y=270)
-        self.txtDueDate = DateEntry(self, font=("Poppins", 13), textvariable=DueDate, width=23, year=2021, month=7, day=7, bg="blue", fg="snow")
+        self.txtDueDate = DateEntry(self, font=("Poppins", 13), textvariable=DueDate, width=23, year=2021, month=7, day=21, foreground ="black",\
+                       background = "#78a2cc", headersbackground = "#a4c3d2" , normalbackground = "white", weekendbackground="white",\
+                       othermonthbackground="white", othermonthwebackground='white')
         self.txtDueDate.place(x=330,y=275)
              
         self.lblsearchby = Label(self, font=("Poppins", 12),anchor = W, text="SEARCH BY:", )
@@ -2813,9 +2862,17 @@ class Report(tk.Frame):
             RDate.set(values[6])
             
         def logout():
+            conn = sqlite3.connect("BRS.db")
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM online_user")
+            c_user = cur.fetchall()
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
+                for user in c_user:
+                    cur.execute("DELETE FROM online_user WHERE username = ?",(user[0],))
+            conn.commit()
+            conn.close()
 
         ## Window Buttons
         
@@ -2946,7 +3003,9 @@ class Report(tk.Frame):
         
         self.lblRDate = Label(self, font=("Poppins", 12, "bold"), text="Return Date:", padx=5, pady=5)
         self.lblRDate.place(x=750,y=475)
-        self.txtRDate = DateEntry(self, font=("Poppins", 13), state="readonly", textvariable=RDate, width=42,year=2021, month=7, day=7, bg="#375971", fg="snow")
+        self.txtRDate = DateEntry(self, font=("Poppins", 12), state="readonly", textvariable=RDate, width=42,year=2021, month=7, day=21, foreground ="black",\
+                       background = "#78a2cc", headersbackground = "#a4c3d2" , normalbackground = "white", weekendbackground="white",\
+                       othermonthbackground="white", othermonthwebackground='white')
         self.txtRDate.place(x=890,y=480)
         
         self.txtSearch = Entry(self, font=("Poppins", 13), textvariable=Search,relief=FLAT, width=40)
@@ -3069,9 +3128,17 @@ class History(tk.Frame):
             displayHistory()
 
         def logout():
+            conn = sqlite3.connect("BRS.db")
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM online_user")
+            c_user = cur.fetchall()
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
+                for user in c_user:
+                    cur.execute("DELETE FROM online_user WHERE username = ?",(user[0],))
+            conn.commit()
+            conn.close()
                 
             
         ## Window Buttons
@@ -3157,8 +3224,6 @@ class History(tk.Frame):
                             command=logout)
         button9.place(x=15,y=630)
         button9.config(cursor= "hand2")
-        
-        
         
         self.orderlist = ttk.Treeview(self,
                                         columns=("Rent Order ID","Book ID","Borrower's ID","Date Borrowed","Due Date"),
