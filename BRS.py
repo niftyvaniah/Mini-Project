@@ -466,26 +466,42 @@ class Dashboard(tk.Frame):
             lab.config(text=time)
             self.after(1000, clock)
         
-        cal = Calendar(self, selectmode='day', year=2021, month=7, font=("Century Gothic",13))
+        cal = Calendar(self, selectmode='day', year=2021, month=7, font=("Century Gothic",12),foreground ="black",\
+                       background = "#ccbe96", headersbackground = "#eed799" , normalbackground = "white", weekendbackground="white",\
+                       othermonthbackground="white", othermonthwebackground="white")
         
         def calendar():
             con = sqlite3.connect("BRS.db")
             cur = con.cursor()
+            cur1 = con.cursor()
             cur.execute("SELECT * FROM rent")
+            cur1.execute("SELECT * FROM report")
             dates = cur.fetchall()    
-            events = {} 
+            rdates = cur1.fetchall()
+            due_date = {} 
+            returned_date = {}
             
             for date in dates:
-                events[date[4]] = 'due_date'
+                due_date[date[4]] = ('date','due_date')
+                
+            for rdate in rdates:
+                returned_date[rdate[6]] = ('date','returned_date')
+                
 
-            for k in events.keys():
+            for k in due_date.keys():
                 date=datetime.datetime.strptime(k,"%m/%d/%Y").date()
-                cal.calevent_create(date, events[k][0], events[k][1])
+                cal.calevent_create(date, due_date[k][0], due_date[k][1])
+             
+            for r in returned_date.keys():
+                date=datetime.datetime.strptime(r,"%m/%d/%Y").date()
+                cal.calevent_create(date, returned_date[r][0], returned_date[r][1])
                 
             cal.tag_config('due_date', background='red', foreground='yellow')
+            cal.tag_config('returned_date', background='black', foreground='white')
             cal.place(x=435,y=438)
             
-        duedate = StringVar()    
+        duedate = StringVar()
+        
         def grabdate():
             date = cal.get_date()
             a = date.split("/") 
@@ -528,14 +544,15 @@ class Dashboard(tk.Frame):
                 else:
                     my_date.config(text=dates)
         
+        
         def logout():
             iExit = tkinter.messagebox.askyesno("Book Rental Sysytem","Do you want to log-out?")
             if iExit > 0:
                 controller.show_frame(Login)
         
-        my_button = Button(self, font=("Century Gothic",10,"underline"), text = "Select Date", bg ="#375971", fg = "snow", bd=0,command = grabdate)
-        my_button.place(x=1010, y=650)
-        my_button.config(cursor= "hand2")
+        #my_button = Button(self, font=("Century Gothic",10,"underline"), text = "Select Date", bg ="#375971", fg = "snow", bd=0,command = grabdate)
+        #my_button.place(x=1010, y=650)
+        #my_button.config(cursor= "hand2")
         
         my_borrower = Label(self, font=("Century Gothic",13), width = 20, bg ="#375971", fg = "snow", text="")   
         my_borrower.place(x=815,y=480)
@@ -725,8 +742,8 @@ class Books(tk.Frame):
             
             cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
                         INNER JOIN authors ON books.BookNumber = authors.BookNumber \
-                        INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
-                        GROUP BY authors.Author, genres.Genre;")
+                        INNER JOIN genres ON authors.BookNumber = genres.BookNumber \
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre")
             books = cur.fetchall()
             for book in books:
                 self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
@@ -815,37 +832,32 @@ class Books(tk.Frame):
             searchby = Searchby.get()
             con = sqlite3.connect("BRS.db")
             cur = con.cursor()
-            cur2 = con.cursor()
-            cur3 = con.cursor()
-            cur.execute("SELECT * FROM books")
-            cur2.execute("SELECT * FROM authors")
-            cur3.execute("SELECT * FROM genres")
+            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
+                        INNER JOIN authors ON books.BookNumber = authors.BookNumber \
+                        INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre;")
             con.commit()
             self.booklist.delete(*self.booklist.get_children())
             rows = cur.fetchall()
-            rows2 = cur2.fetchall()
-            rows3 = cur3.fetchall()
             for row in rows:
-                for author in rows2:
-                    for genre in rows3:
-                        if searchby == "Book Number":
-                            if row[0].startswith(search):
-                                self.booklist.insert("", tk.END, text=row[0], values=[row[0],row[1],row[2],author[1],genre[1],row[3]])
-                        elif searchby == "ISBN":
-                            if row[1].startswith(search):
-                                self.booklist.insert("", tk.END, text=row[0], values=[row[0],row[1],row[2],author[1],genre[1],row[3]])
-                        elif searchby == "Title":
-                            if row[2].count(search):
-                                self.booklist.insert("", tk.END, text=row[0], values=[row[0],row[1],row[2],author[1],genre[1],row[3]])
-                        elif searchby =="Author":
-                            if row[3].count(search):
-                                self.booklist.insert("", tk.END, text=row[0], values=[row[0],row[1],row[2],author[1],genre[1],row[3]])
-                        elif searchby == "Genre":
-                            if row[4].count(search):
-                                self.booklist.insert("", tk.END, text=row[0], values=[row[0],row[1],row[2],author[1],genre[1],row[3]])
-                        else:
-                            if row[5].startswith(search):
-                                self.booklist.insert("", tk.END, text=row[0], values=[row[0],row[1],row[2],author[1],genre[1],row[3]])
+                if searchby == "Book Number":
+                    if row[0].startswith(search):
+                        self.booklist.insert("", tk.END, text=row[0], values=(row[0],row[1],row[2],row[4],row[5],row[3]))
+                    elif searchby == "ISBN":
+                        if row[1].startswith(search):
+                            self.booklist.insert("", tk.END, text=row[0], values=(row[0],row[1],row[2],row[4],row[5],row[3]))
+                    elif searchby == "Title":
+                        if row[2].count(search):
+                            self.booklist.insert("", tk.END, text=row[0], values=(row[0],row[1],row[2],row[4],row[5],row[3]))
+                    elif searchby =="Author":
+                        if row[3].count(search):
+                            self.booklist.insert("", tk.END, text=row[0], values=(row[0],row[1],row[2],row[4],row[5],row[3]))
+                    elif searchby == "Genre":
+                        if row[4].count(search):
+                            self.booklist.insert("", tk.END, text=row[0], values=(row[0],row[1],row[2],row[4],row[5],row[3]))
+                    else:
+                        if row[5].startswith(search):
+                            self.booklist.insert("", tk.END, text=row[0], values=(row[0],row[1],row[2],row[4],row[5],row[3]))
             con.close()
         
         def showAll():
@@ -874,90 +886,83 @@ class Books(tk.Frame):
             self.booklist.delete(*self.booklist.get_children())
             con = sqlite3.connect("BRS.db")
             cur = con.cursor()
-            """
             cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
                         INNER JOIN authors ON books.BookNumber = authors.BookNumber \
                         INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
-                        GROUP BY authors.Author, genres.Genre ")
-            """
-            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|')\
-                        FROM books INNER JOIN authors ON authors.BookNumber = books.BookNumber\
-                        INNER JOIN genres ON genres.BookNumber = authors.BookNumber\
-                        GROUP BY authors.Author, genres.Genre\
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre\
                         ORDER BY books.BookNumber ASC")
-            fetch = cur.fetchall()
-            for data in fetch:
-                self.booklist.insert('', tk.END, text=data[0], values=data[0:])
-                #self.booklist.insert('', tk.END, text=data[0], values=(data[0],data[1],data[2],data[4],data[5],data[3]))
+            books = cur.fetchall()
+            for book in books:
+                self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
             con.close()
 
         def sortISBN():
             self.booklist.delete(*self.booklist.get_children())
             con = sqlite3.connect("BRS.db")
             cur = con.cursor()
-            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|')\
-                        FROM books INNER JOIN authors ON authors.BookNumber = books.BookNumber\
-                        INNER JOIN genres ON genres.BookNumber = authors.BookNumber\
-                        GROUP BY authors.Author, genres.Genre\
+            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
+                        INNER JOIN authors ON books.BookNumber = authors.BookNumber \
+                        INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre\
                         ORDER BY books.ISBN ASC")
-            fetch = cur.fetchall()
-            for data in fetch:
-                self.booklist.insert('', tk.END, text=data[0], values=data[0:])
+            books = cur.fetchall()
+            for book in books:
+                self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
             con.close()
             
         def sortTitle():
             self.booklist.delete(*self.booklist.get_children())
             con = sqlite3.connect("BRS.db")
             cur = con.cursor()
-            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|')\
-                        FROM books INNER JOIN authors ON authors.BookNumber = books.BookNumber\
-                        INNER JOIN genres ON genres.BookNumber = authors.BookNumber\
-                        GROUP BY authors.Author, genres.Genre\
+            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
+                        INNER JOIN authors ON books.BookNumber = authors.BookNumber \
+                        INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre\
                         ORDER BY books.Title ASC")
-            fetch = cur.fetchall()
-            for data in fetch:
-                self.booklist.insert('', tk.END, text=data[0], values=data[0:])
+            books = cur.fetchall()
+            for book in books:
+                self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
             con.close()
 
         def sortAuthor():
             self.booklist.delete(*self.booklist.get_children())
             con = sqlite3.connect("BRS.db")
             cur = con.cursor()
-            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|')\
-                        FROM books INNER JOIN authors ON authors.BookNumber = books.BookNumber\
-                        INNER JOIN genres ON genres.BookNumber = authors.BookNumber\
-                        GROUP BY authors.Author, genres.Genre\
+            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
+                        INNER JOIN authors ON books.BookNumber = authors.BookNumber \
+                        INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre\
                         ORDER BY authors.Author ASC")
-            fetch = cur.fetchall()
-            for data in fetch:
-                self.booklist.insert('', tk.END, text=data[0], values=data[0:])
+            books = cur.fetchall()
+            for book in books:
+                self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
             con.close()
 
         def sortGenre():
             self.booklist.delete(*self.booklist.get_children())
             con = sqlite3.connect("BRS.db")
             cur = con.cursor()
-            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|')\
-                        FROM books INNER JOIN authors ON authors.BookNumber = books.BookNumber\
-                        INNER JOIN genres ON genres.BookNumber = authors.BookNumber\
-                        GROUP BY authors.Author, genres.Genre\
+            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
+                        INNER JOIN authors ON books.BookNumber = authors.BookNumber \
+                        INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre\
                         ORDER BY genres.Genre ASC")
-            fetch = cur.fetchall()
-            for data in fetch:
-                self.booklist.insert('', tk.END, text=data[0], values=data[0:])
+            books = cur.fetchall()
+            for book in books:
+                self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
             con.close()
         def sortStatus():
             self.booklist.delete(*self.booklist.get_children())
             con = sqlite3.connect("BRS.db")
             cur = con.cursor()
-            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|')\
-                        FROM books INNER JOIN authors ON authors.BookNumber = books.BookNumber\
-                        INNER JOIN genres ON genres.BookNumber = authors.BookNumber\
-                        GROUP BY authors.Author, genres.Genre\
+            cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
+                        INNER JOIN authors ON books.BookNumber = authors.BookNumber \
+                        INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre\
                         ORDER BY books.Status ASC")
-            fetch = cur.fetchall()
-            for data in fetch:
-                self.booklist.insert('', tk.END, text=data[0], values=data[0:])
+            books = cur.fetchall()
+            for book in books:
+                self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
             con.close()
        
             
@@ -1226,6 +1231,21 @@ class Authors(tk.Frame):
             list_of_authors2 = []
             unique_authors = []
             authors = cur.fetchall()
+
+            
+            for author in authors:
+               list_of_authors.append(author[1]) 
+               
+            for author in list_of_authors:
+                list_of_authors2.append(author.split(', '))
+            
+            for author in list_of_authors2:
+                for u_author in author:
+                    if u_author not in unique_authors:
+                        unique_authors.append(u_author)
+                        
+            for row in unique_authors:
+                self.authorlist.insert("", tk.END, text=row[0], values=(row[::],))
             """
             for author in authors:
                list_of_authors.append(author[1]) 
@@ -1240,8 +1260,8 @@ class Authors(tk.Frame):
                         unique_authors.append(u_author)
             """   
             
-            for author in authors:
-                self.authorlist.insert("", tk.END, text='', values=author[1:])
+            #for author in authors:
+               # self.authorlist.insert("", tk.END, text='', values=author[1:])
                 
             conn.commit()    
             conn.close()
@@ -1253,7 +1273,7 @@ class Authors(tk.Frame):
             cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
                         INNER JOIN authors ON books.BookNumber = authors.BookNumber \
                         INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
-                        GROUP BY authors.Author, genres.Genre;")
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre")
             books = cur.fetchall()
             for book in books:
                 self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
@@ -1282,7 +1302,7 @@ class Authors(tk.Frame):
             cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
                         INNER JOIN authors ON books.BookNumber = authors.BookNumber \
                         INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
-                        GROUP BY authors.Author, genres.Genre;")
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre")
             con.commit()
             self.booklist.delete(*self.booklist.get_children())
             item = self.authorlist.selection()[0]
@@ -1429,7 +1449,7 @@ class Authors(tk.Frame):
         self.booklist.place(x=530,y=180)
         
         
-        lblorderlist = tk.Label(self, font = ("Century Gothic",15), padx=6,width = 24, height = 1,text="Genres",anchor=W, bg="#375971", fg="snow")
+        lblorderlist = tk.Label(self, font = ("Century Gothic",15), padx=6,width = 24, height = 1,text="Author",anchor=W, bg="#375971", fg="snow")
         lblorderlist.place(x=200,y=151)
         
         lblbooklist = tk.Label(self, font = ("Century Gothic",15), padx = 5 ,width =65, height = 1,text="List of All Books",anchor=W, bg="#375971", fg="snow")
@@ -1527,7 +1547,7 @@ class Genres(tk.Frame):
             cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
                         INNER JOIN authors ON books.BookNumber = authors.BookNumber \
                         INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
-                        GROUP BY authors.Author, genres.Genre;")
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre")
             books = cur.fetchall()
             for book in books:
                 self.booklist.insert("", tk.END, text=book[0], values=(book[0],book[1],book[2],book[4],book[5],book[3]))
@@ -1574,7 +1594,7 @@ class Genres(tk.Frame):
             cur.execute("SELECT books.*, GROUP_CONCAT(authors.Author,'|'), GROUP_CONCAT(genres.Genre, '|') FROM books\
                         INNER JOIN authors ON books.BookNumber = authors.BookNumber \
                         INNER JOIN genres ON authors.BookNumber = genres.BookNumber\
-                        GROUP BY authors.Author, genres.Genre;")
+                        GROUP BY books.BookNumber, authors.Author, genres.Genre")
             con.commit()
             self.booklist.delete(*self.booklist.get_children())
             rows = cur.fetchall()   
